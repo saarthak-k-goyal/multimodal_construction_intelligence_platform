@@ -1,6 +1,6 @@
 """
 Daily Site Assistant & Weather-Aware Advisory Module (Epic 5)
-Provides real-time dynamic weather safety protocols and multi-turn construction engineering chatbot.
+ConstructAI Lightweight UI Layout matching Reference Images 3, 4, 5, 6, & 9.
 """
 
 from datetime import datetime
@@ -8,354 +8,455 @@ from typing import Any, Dict, List, Optional
 import streamlit as st
 
 from modules.gemini_client import GeminiMultimodalClient
+from modules.ui_components import render_top_header
 
-WEATHER_PROTOCOLS = {
-    "High Wind (> 45 km/h gusts)": {
-        "status_color": "danger",
-        "badge": "CRITICAL WIND ADVISORY",
-        "alert_title": "Severe Gale Warning - Tower Crane & Scaffold Shutdown",
-        "crane_status": "🔴 SUSPEND ALL CRANE & HOIST OPERATIONS",
-        "scaffold_status": "🔴 PROHIBIT WORK ON SUSPENDED CRADLES & UNANCHORED PLATFORMS",
-        "concrete_status": "🟡 MAINTAIN RAPID CURING COMPOUND TO PREVENT DRYING SHRINKAGE",
-        "directives": [
-            "Luff down and weather-vane all tower crane jibs immediately (OSHA 1926.1431). Prohibit lifting loads with high surface areas.",
-            "Inspect and secure all loose corrugated metal sheeting, plywood shuttering, and hollow-core blocks on upper floors.",
-            "Halt all exterior façade glazing, suspended rope access, and cradle operations immediately.",
-            "Tether external staging and check guy-wire tensions on communications masts and temp hoists.",
+WEATHER_ADVISORIES = {
+    "Cloudy / Overcast": {
+        "status": "PROCEED WITH CAUTION",
+        "alert_title": "PROCEED WITH CAUTION",
+        "narrative": "Proceed with planned activities, but maintain heightened vigilance for sudden precipitation and prepare contingency weather sheeting.",
+        "hazards": ["REDUCED VISIBILITY", "POTENTIAL SCATTERED SHOWERS", "INCREASED RISK OF SLIPPERY SURFACES"],
+        "precautions": [
+            "Ensure proper auxiliary task lighting on internal floors.",
+            "Verify all temporary dewatering pumps are primed in basement pits.",
+            "Keep waterproof tarpaulins staged immediately adjacent to active concrete bays.",
         ],
-        "standards_cited": ["OSHA 29 CFR 1926.1431", "IS 13415:1992", "ASCE 7-22 Wind Load Provisions"],
+        "directives": [
+            "Ensure proper auxiliary task lighting on internal floors.",
+            "Verify all temporary dewatering pumps are primed in basement pits.",
+            "Keep waterproof tarpaulins staged immediately adjacent to active concrete bays.",
+        ],
+        "crane_status": "🟡 Monitor wind and cloud ceiling; keep radio contact.",
+    },
+    "High Wind (> 45 km/h gusts)": {
+        "status": "HALT CRANE & ELEVATED TRADES",
+        "alert_title": "HALT CRANE & ELEVATED TRADES",
+        "narrative": "High gust velocities exceed safe aerodynamic lifting limits. All tower crane jibs must be weather-vaned immediately.",
+        "hazards": ["CRANE JIB TORSION OVERLOAD", "UNANCHORED FORMWORK DISLODGEMENT", "FALL FROM HEIGHT DISORIENTATION"],
+        "precautions": [
+            "Luff down and weather-vane all tower cranes (OSHA 1926.1431). Prohibit large sail-area panel hoisting.",
+            "Inspect and secure all loose plywood, safety nets, and corrugated metal sheets on upper decks.",
+            "Halt all exterior suspended cradle, glazing, and rope access trades.",
+        ],
+        "directives": [
+            "Luff down and weather-vane all tower cranes (OSHA 1926.1431). Prohibit large sail-area panel hoisting.",
+            "Inspect and secure all loose plywood, safety nets, and corrugated metal sheets on upper decks.",
+            "Halt all exterior suspended cradle, glazing, and rope access trades.",
+        ],
+        "crane_status": "🔴 HALT ALL CRANE & HOIST OPERATIONS IMMEDIATELY",
     },
     "Heavy Rain / Monsoon Storm (> 50 mm/hr)": {
-        "status_color": "danger",
-        "badge": "FLOOD & ELECTRICAL HAZARD",
-        "alert_title": "Heavy Precipitation - Deep Pit Collapse & Wet Shoring Risk",
-        "crane_status": "🟡 GROUND LIFTS RESTRICTED; LIGHTNING SENSOR MONITORED",
-        "scaffold_status": "🔴 HALT METAL SCAFFOLD WORK DURING LIGHTNING & RAIN",
-        "concrete_status": "🔴 HALT STRUCTURAL CONCRETE POURING IMMEDIATELY",
-        "directives": [
-            "Halt all structural concrete pouring unless pour bay is completely sheltered under water-tight tarpaulin; rainwater will alter water-cement ratio and destroy compressive strength (IS 456 Clause 13.3).",
-            "Continuous dewatering pumps must be deployed in deep basement excavations to prevent hydraulic uplift and trench sidewall sloughing.",
-            "Inspect trench shoring and soil retaining piles for saturation subsidence before allowing worker entry (OSHA 1926.651).",
-            "De-energize all temporary 415V distribution boxes in open areas; verify GFCI/ELCB trip sensitivity (< 30mA).",
+        "status": "HALT STRUCTURAL CONCRETE & EXCAVATIONS",
+        "alert_title": "HALT STRUCTURAL CONCRETE & EXCAVATIONS",
+        "narrative": "Severe precipitation alters the water-cement ratio, risking severe compressive strength failure. Deep trenches risk catastrophic sidewall collapse.",
+        "hazards": ["CONCRETE WATER-CEMENT CONTAMINATION", "DEEP TRENCH LIQUEFACTION & COLLAPSE", "ELECTRICAL GROUND SHOCK FAULTS"],
+        "precautions": [
+            "Halt all un-sheltered structural concrete pouring immediately (IS 456 Clause 13.3).",
+            "Continuous dewatering pumps must run in basement excavations to avoid hydraulic uplift.",
+            "De-energize all outdoor 415V temporary power distribution panels; inspect GFCI trip threshold (< 30mA).",
         ],
-        "standards_cited": ["IS 456:2000 Clause 13.3", "OSHA 1926 Subpart P (Excavations)", "IS 3764:1992 (Excavation Safety)"],
+        "directives": [
+            "Halt all un-sheltered structural concrete pouring immediately (IS 456 Clause 13.3).",
+            "Continuous dewatering pumps must run in basement excavations to avoid hydraulic uplift.",
+            "De-energize all outdoor 415V temporary power distribution panels; inspect GFCI trip threshold (< 30mA).",
+        ],
+        "crane_status": "🔴 GROUND RESTRICTED; LIGHTNING SENSOR MONITORED",
     },
     "Extreme Heat (> 40°C ambient)": {
-        "status_color": "warning",
-        "badge": "HEAT STRESS & FLASH-SET ADVISORY",
-        "alert_title": "High Ambient Heat - Concrete Flash Set & Worker Heat Stroke Prevention",
+        "status": "HOT-WEATHER CONCRETING & WORKER ROTATION",
+        "alert_title": "HOT-WEATHER CONCRETING & WORKER ROTATION",
+        "narrative": "High temperatures accelerate moisture evaporation causing rapid slump loss and severe plastic shrinkage cracks.",
+        "hazards": ["CONCRETE FLASH SETTING", "PLASTIC SHRINKAGE TENSILE CRACKING", "WORKER HEAT EXHAUSTION & STROKE"],
+        "precautions": [
+            "Use chilled batching water or crushed ice to keep concrete placement temperature below 32°C (ACI 305R / IS 456).",
+            "Apply continuous wet burlap ponding or aliphatic alcohol evaporation retarders immediately after finishing.",
+            "Mandate OSHA heat illness shifts: 15-minute shaded rest breaks every 60 minutes with electrolyte stations.",
+        ],
+        "directives": [
+            "Use chilled batching water or crushed ice to keep concrete placement temperature below 32°C (ACI 305R / IS 456).",
+            "Apply continuous wet burlap ponding or aliphatic alcohol evaporation retarders immediately after finishing.",
+            "Mandate OSHA heat illness shifts: 15-minute shaded rest breaks every 60 minutes with electrolyte stations.",
+        ],
         "crane_status": "🟢 OPERATIONAL WITH HYDRAULIC FLUID TEMP MONITORING",
-        "scaffold_status": "🟡 ROTATE CREWS; SHADED REST STATIONS MANDATORY",
-        "concrete_status": "🟡 HOT-WEATHER CONCRETING PROTOCOL (ACI 305R / IS 456)",
-        "directives": [
-            "Hot-weather concreting protocols in force: Use chilled batching water or flaked ice to maintain fresh concrete placement temperature below 32°C (IS 456 Clause 14.1).",
-            "Apply aliphatic alcohol evaporation retarders or continuous wet burlap ponding immediately behind screeding to prevent plastic shrinkage cracking.",
-            "Mandate OSHA heat illness prevention protocol: 15-minute shaded rest breaks every 60 minutes with electrolyte water stations for all reinforcement and formwork crews.",
-            "Stagger shift timings: Shift high-exertion structural casting to early morning (05:00 - 10:00) or night shifts.",
-        ],
-        "standards_cited": ["ACI 305R-20 (Guide to Hot Weather Concreting)", "IS 456:2000 Clause 14", "OSHA Heat Illness Standard"],
     },
-    "Normal / Favorable (24°C, Clear, 12 km/h)": {
-        "status_color": "success",
-        "badge": "OPTIMAL SITE OPERATIONS",
-        "alert_title": "Optimal Production Window - All Trades Cleared",
+    "Normal / Favorable (24°C, Clear)": {
+        "status": "OPTIMAL CONDITIONS - PROCEED ALL TRADES",
+        "alert_title": "OPTIMAL CONDITIONS - PROCEED ALL TRADES",
+        "narrative": "Weather conditions are fully within optimal engineering ranges. All scheduled structural and MEP trades are cleared for full production.",
+        "hazards": ["STANDARD SITE OPERATIONAL RISKS", "HEAVY PLANT MOBILITY"],
+        "precautions": [
+            "Maintain standard 7-day moist curing for OPC concrete (IS 456 Clause 13.5).",
+            "Conduct standard morning toolbox safety briefings.",
+            "Verify all floor edge perimeter cables and rebar safety caps are secure.",
+        ],
+        "directives": [
+            "Maintain standard 7-day moist curing for OPC concrete (IS 456 Clause 13.5).",
+            "Conduct standard morning toolbox safety briefings.",
+            "Verify all floor edge perimeter cables and rebar safety caps are secure.",
+        ],
         "crane_status": "🟢 FULL HIGH-ELEVATION HOISTING CLEARED",
-        "scaffold_status": "🟢 ALL SUSPENDED & EXTERIOR TRADES PERMITTED",
-        "concrete_status": "🟢 PRIME CONCRETING CONDITIONS (STANDARD CURING)",
-        "directives": [
-            "Maintain standard 7-day wet burlap curing for OPC concrete, and 10-day for blended mineral admixtures (IS 456 Clause 13.5).",
-            "Proceed with planned major concrete slab pours and tower crane tandem lifts.",
-            "Conduct routine morning toolbox talks and review permit-to-work (PTW) logs for hot-works and confined spaces.",
-            "Standard PPE enforcement: Hard hats, Class 2 high-vis vests, steel-toe boots, and safety glasses.",
-        ],
-        "standards_cited": ["IS 456:2000 Clause 13.5", "OSHA 1926 General Safety"],
     },
-    "Cold Weather / Frost (< 5°C)": {
-        "status_color": "warning",
-        "badge": "COLD WEATHER CONCRETING",
-        "alert_title": "Low Temperature Warning - Hydration Stagnation & Frost Heave",
-        "crane_status": "🟢 NORMAL OPERATION WITH WIRE ROPE DE-ICING",
-        "scaffold_status": "🟡 INSPECT PLANKS FOR SLIPPERY FROST / ICE COATING",
-        "concrete_status": "🟡 COLD WEATHER CONCRETING PROTOCOL (ACI 306R)",
-        "directives": [
-            "Never place concrete on frozen ground or icy formwork; heat aggregate and mixing water to ensure fresh concrete temperature does not fall below 10°C during placement (IS 456 Clause 14.2).",
-            "Maintain thermal insulating curing blankets (R-value > 4) over freshly poured slabs for minimum 72 hours to prevent frost damage during early-age hydration.",
-            "Extend formwork striking periods by 50% to accommodate delayed concrete strength gain under low temperatures (IS 456 Clause 11.3).",
+}
+WEATHER_PROTOCOLS = WEATHER_ADVISORIES
+
+EXECUTION_PLANS = {
+    "Concreting": {
+        "tasks": [
+            "Inspect shuttering alignment, prop verticality, and cover blocks before pour clearance.",
+            "Conduct safety checks on transit mixers, concrete pump pipelines, and vibrators.",
+            "Verify slump test (75-100 mm) and cast 6 compressive test cubes per 100 m³ (IS 516).",
+            "Pour and vibrate concrete systematically in 300mm horizontal layers.",
+            "Finish surface with wooden float; commence wet burlap curing as soon as initial set occurs.",
         ],
-        "standards_cited": ["ACI 306R-16 (Cold Weather Concreting)", "IS 456:2000 Clause 11.3 & 14.2"],
+        "safety_checks": [
+            "HARD HAT AND SAFETY VEST USAGE",
+            "STEEL-TOED BOOTS AND HEAVY RUBBER GLOVES",
+            "EYE PROTECTION AND DUST MASKS",
+            "REGULAR INSPECTION OF PUMP PIPELINE CLAMPS",
+        ],
+        "risk_alerts": [
+            "Risk of concrete segregation in high-drop pours without tremie pipe.",
+            "Risk of formwork blowout under excess hydraulic concrete pressure.",
+            "Risk of pump pipeline blockage or gasket rupture under high pumping pressure.",
+        ],
     },
-    "High Humidity & Fog (> 85% RH)": {
-        "status_color": "warning",
-        "badge": "LOW VISIBILITY & SLIP HAZARD",
-        "alert_title": "Dense Fog / Dew - Hoisting Blind Spots & Painting Suspension",
-        "crane_status": "🟡 CRANE BLIND-HOISTING REQUIRES CERTIFIED RADIO SIGNALMAN",
-        "scaffold_status": "🟡 INSPECT FOR SLIPPERY STEEL TUBING & RUNWAYS",
-        "concrete_status": "🟢 EXCELLENT MOISTURE RETENTION FOR CONCRETE CURING",
-        "directives": [
-            "Tower crane blind lifts strictly require calibrated two-way UHF radio communication with certified banksman/signalman at pick and drop locations.",
-            "Suspend all exterior spray painting, epoxy coatings, and waterproofing membranes as substrate moisture will cause blistering and adhesion failure.",
-            "Inspect scaffold decking and rebar walking mats for slippery condensation; require anti-slip footwear.",
+    "Formwork & Shuttering": {
+        "tasks": [
+            "Survey grid benchmarks and verify soffit levels with auto-level instrument.",
+            "Erect heavy-duty steel props with base plates firmly bedded on unyielding subgrade.",
+            "Fit plywood shuttering with tight joints to prevent slurry leakage during vibration.",
+            "Apply approved mould release shuttering oil evenly across contact surfaces.",
         ],
-        "standards_cited": ["OSHA 1926.1419 (Signals)", "SSPC-PA 1 (Surface Coatings)"],
+        "safety_checks": [
+            "100% FALL PROTECTION TETHERING ABOVE 1.8M",
+            "SCAFFOLD STAGING PERIMETER GUARDRAILS",
+            "CLEAN HOUSEKEEPING FREE OF NAILS AND TIMBER SCRAP",
+            "CERTIFIED HOIST TACKLE FOR FLYING TABLE FORMS",
+        ],
+        "risk_alerts": [
+            "Risk of prop buckling if bracing tubes are omitted.",
+            "Risk of worker falls during shuttering placement at exterior slab boundaries.",
+        ],
+    },
+    "Steel Reinforcement (Rebar)": {
+        "tasks": [
+            "Verify rebar mill test certificates (Fe500D TMT conforming to IS 1786).",
+            "Cut, bend, and tie reinforcement bars per approved Bar Bending Schedule (BBS).",
+            "Tie rebars securely with 16-gauge annealed GI binding wire at intersections.",
+            "Place certified concrete cover blocks (40mm columns, 25mm beams, 20mm slabs) at 1-meter centers.",
+        ],
+        "safety_checks": [
+            "CUT-RESISTANT LEATHER GLOVES",
+            "PROTECTIVE MUSHROOM CAPS ON ALL VERTICAL DOWELS",
+            "STABLE TIMBER WALKING RUNWAYS OVER REBAR GRIDS",
+            "SAFETY GLASSES FOR REBAR CUTTING & BENDING TEAMS",
+        ],
+        "risk_alerts": [
+            "Risk of impalement on uncapped starter dowels.",
+            "Risk of pinch and crush injuries during heavy rebar bundle hoisting.",
+        ],
+    },
+    "Deep Excavation & Shoring": {
+        "tasks": [
+            "Survey buried utilities (electric, water, gas) prior to mechanical excavator digging.",
+            "Excavate in stepped benches conforming to soil angle of repose (OSHA 1926.652).",
+            "Install soldier piles, timber lagging, or shotcrete with pre-stressed soil nails.",
+            "Monitor piezometers and groundwater level in perimeter collection sumps.",
+        ],
+        "safety_checks": [
+            "CONTINUOUS MONITORING OF PIT SHORING DEFLECTION",
+            "DIVERSE SAFE EGRESS LADDERS EVERY 25 FEET",
+            "TESTING FOR CONFINED SPACE HAZARDOUS GASES",
+            "DEWATERING PUMP ELECTRICAL GROUNDING VERIFICATION",
+        ],
+        "risk_alerts": [
+            "Risk of sudden trench wall sloughing or liquefaction after rain.",
+            "Risk of excavator rollover near trench edge without stop-logs.",
+        ],
     },
 }
 
-CIVIL_ENGINEERING_SYSTEM_INSTRUCTION = """
-You are the Senior Resident Civil & Structural Engineer on a large-scale commercial/residential construction project.
-You possess deep expertise in:
-- Indian Standards: IS 456:2000 (Concrete), IS 13415 (Scaffolds), IS 1893 (Seismic Design), IS 875 (Design Loads), IS 3764 (Excavation)
-- International Standards: OSHA 29 CFR 1926 (Construction Safety), ACI 318, ACI 305R/306R, Eurocode 2
-- Project planning, CapEx forecasting, formwork de-shuttering schedules, concrete mix design, and non-destructive testing (UPV, Rebound Hammer)
 
-Instructions:
-- Provide clear, highly technical, actionable engineering guidance.
-- Cite specific code clauses (e.g. IS 456:2000 Clause 11.3 for formwork striking times).
-- Integrate the active site weather condition into your safety and engineering recommendations.
-- Format responses cleanly with bullet points, bold key terms, and concise checklists.
-"""
-
-
-def get_demo_chatbot_response(user_query: str, current_weather: str) -> str:
-    """Provides high-fidelity civil engineering answers for demonstration mode."""
+def get_demo_chatbot_response(user_query: str, current_weather: str = "Normal") -> str:
+    """Answers construction queries with exact code clauses."""
     q = user_query.lower()
-
-    if "curing" in q or "is 456" in q and "opc" in q:
+    if "curing" in q or "is 456" in q:
         return (
-            "### ⏱️ Minimum Curing Periods under IS 456:2000 (Clause 13.5)\n\n"
-            "Under Indian Standard **IS 456:2000, Clause 13.5**, the mandatory minimum moist curing periods are:\n\n"
-            "1. **Ordinary Portland Cement (OPC 33 / 43 / 53 Grade):**\n"
-            "   - **Normal / Moderate Weather:** Minimum **7 days** of continuous moist curing.\n"
-            "   - **Hot & Dry Weather (< 50% RH, > 35°C):** Minimum **10 days** of continuous moist curing.\n\n"
-            "2. **Mineral Admixtures / Blended Cements (PPC, GGBS, Fly Ash):**\n"
-            "   - **Standard Weather:** Minimum **10 days**.\n"
-            "   - **Hot / Dry Weather:** Minimum **14 days**.\n\n"
-            f"> 📍 *Active Site Weather Note ({current_weather}):* Ensure continuous ponding or wet hessian wrapping to avoid premature moisture evaporation and tensile micro-cracks."
+            "Under **IS 456:2000, Clause 13.5**:\n"
+            "- **OPC Concrete:** Minimum moist curing period is **7 days** (10 days in dry/hot weather).\n"
+            "- **Blended Cement (PPC/GGBS/Fly Ash):** Minimum **10 days** (14 days in hot weather).\n"
+            "Ensure continuous ponding or wet burlap wrapping to prevent shrinkage micro-cracking."
         )
-
-    elif "wind" in q or "crane" in q:
+    elif "crane" in q or "wind" in q:
         return (
-            "### 🏗️ Tower Crane Operation & Wind Thresholds (OSHA & IS Codes)\n\n"
-            "Under **OSHA 29 CFR 1926.1431** and standard manufacturer load-chart regulations (FEM 1.001):\n\n"
-            "- **Maximum Permissible Wind Speed for Normal Lifts:** Typically **38 to 45 km/h (20 to 24 knots / 11-12 m/s)**.\n"
-            "- **Large Surface Area / Panel Lifts (Formwork, Glazing):** Restrict operations at **32 km/h (8.9 m/s)** due to wind sail drag.\n"
-            "- **Mandatory Shutdown & Out-of-Service Protocol (> 50 km/h or Gusts > 55 km/h):**\n"
-            "  1. Lower hook block to top limit under jib.\n"
-            "  2. Position trolley at minimum radius near mast.\n"
-            "  3. Release slewing brake to enable **360° free weather-vaning** (avoids severe torsional boom buckling).\n"
-            "  4. Cut main electrical isolator."
+            "Under **OSHA 29 CFR 1926.1431**:\n"
+            "- **Normal Lifts:** Permissible up to **38 - 45 km/h**.\n"
+            "- **Large Surface Area Panels:** Restrict at **32 km/h**.\n"
+            "- **Shutdown (> 50 km/h):** Lower hook block, position trolley at minimum radius, and release slewing brake for **360° free weather-vaning**."
         )
-
-    elif "power" in q or "clearance" in q or "overhead" in q:
+    elif "formwork" in q or "striking" in q:
         return (
-            "### ⚡ OSHA Electrical Clearances for Scaffolding & Cranes\n\n"
-            "Under **OSHA 29 CFR 1926.451(f)(6)** and **1926.1408**:\n\n"
-            "- **Insulated Lines < 300 Volts:** Minimum clearance of **3 feet (0.9 meters)**.\n"
-            "- **Insulated Lines 300V to 50 kV:** Minimum clearance of **10 feet (3.0 meters)**.\n"
-            "- **Lines > 50 kV (e.g. 33 kV / 66 kV / 132 kV Transmission):**\n"
-            "  - Formula: **10 feet + 0.4 inches for every 1 kV over 50 kV**.\n"
-            "  - For standard 33 kV uninsulated lines: Minimum safety clearance is **10 feet (3.05 m)**; recommended engineering clearance is **15 feet (4.57 m)**.\n\n"
-            "⚠️ *Mandatory Site Action:* Request utility line sleeving / de-energization or install physical non-conductive timber goalposts (warning barriers)."
+            "Under **IS 456:2000, Clause 11.3 (Formwork Striking Times for OPC)**:\n"
+            "- Vertical walls, columns, beam sides: **16 - 24 hours**\n"
+            "- Slab soffits (props left underneath): **3 days**\n"
+            "- Beam soffits (props left underneath): **7 days**\n"
+            "- Props to slabs up to 4.5m span: **7 days** (over 4.5m: **14 days**)\n"
+            "- Props to beams up to 6m span: **14 days** (over 6m: **21 days**)"
         )
-
-    elif "de-shuttering" in q or "striking" in q or "formwork" in q:
+    elif "power" in q or "overhead" in q or "clearance" in q:
         return (
-            "### 📋 IS 456:2000 Clause 11.3 - Formwork Striking Times (OPC Concrete)\n\n"
-            "Under standard temperature conditions (> 15°C with OPC cement):\n\n"
-            "| Formwork Member | Minimum Period Before Striking |\n"
-            "| :--- | :--- |\n"
-            "| **Vertical sides of columns, walls, & beams** | **16 to 24 hours** |\n"
-            "| **Slab soffits (props left underneath)** | **3 days** |\n"
-            "| **Beam soffits (props left underneath)** | **7 days** |\n"
-            "| **Props to slabs spanning up to 4.5 m** | **7 days** |\n"
-            "| **Props to slabs spanning over 4.5 m** | **14 days** |\n"
-            "| **Props to beams & arches spanning up to 6 m** | **14 days** |\n"
-            "| **Props to beams & arches spanning over 6 m** | **21 days** |\n\n"
-            "*(For low temperatures or blended PPC/GGBS cements, extend these periods based on cube compressive test results attaining > 70% characteristic strength).* "
+            "Under **OSHA 29 CFR 1926.451(f)(6)** and **1926.1408**:\n"
+            "- For uninsulated overhead power lines up to 50 kV: Minimum safety clearance is **10 feet (3.05 m)**.\n"
+            "- For lines > 50 kV: Minimum clearance is 10 feet plus 0.4 inches for every 1 kV over 50 kV."
         )
-
-    elif "heat" in q or "temperature" in q:
-        return (
-            "### ☀️ Hot Weather Concreting Protocols (ACI 305R / IS 456)\n\n"
-            "When ambient temperatures exceed 38°C:\n\n"
-            "1. **Concrete Mix Control:**\n"
-            "   - Replace 25-40% of batching water with crushed flaked ice to ensure fresh concrete temperature does not exceed 32°C.\n"
-            "   - Add ASTM C494 Type D or Type G retarding superplasticizers to extend slump retention.\n"
-            "2. **Subgrade & Shuttering Preparation:**\n"
-            "   - Fog-spray steel formwork and reinforcement with cold water prior to pour (drain standing ponding).\n"
-            "3. **Finishing & Curing:**\n"
-            "   - Apply monomolecular film evaporation retarders immediately after floating.\n"
-            "   - Commence wet burlap ponding as soon as the concrete sets to prevent plastic shrinkage cracking."
-        )
-
     else:
         return (
-            f"### 👷 Resident Structural Engineer Advisory\n\n"
-            f"**Regarding your inquiry:** *\"{user_query}\"*\n\n"
-            f"From an engineering perspective under **IS 456:2000** and **OSHA 1926 Safety Regulations**:\n\n"
-            f"1. **Structural Integrity & Quality Assurance:** Verify that test cube specimens (150mm x 150mm) are cast in triplicate for 7-day and 28-day compressive verification according to IS 516 standards.\n"
-            f"2. **Site Safety Precaution:** Current weather condition is **{current_weather}**. Ensure the shift supervisor confirms all tie-downs, electrical grounding, and edge protections before crew mobilization.\n"
-            f"3. **Documentation:** Record all structural modifications in the daily site diary and obtain written sign-off from the Structural Consultant on record."
+            f"**Senior Site Engineer Advisory:**\n"
+            f"For inquiry *\"{user_query}\"*:\n"
+            "Ensure adherence to IS 456:2000 concrete quality standards and OSHA 1926 safety regulations. "
+            "Verify all test cubes are cast in triplicate and recorded in the daily site engineering register."
         )
 
 
 def render_site_assistant_tab(client: GeminiMultimodalClient):
-    """Renders Tab 4: Daily Site Assistant & Weather-Aware Advisory."""
-    st.markdown(
-        """
-        <div style="margin-bottom: 16px;">
-            <h3 style="color: #ffffff; margin-bottom: 4px;">🌤️ Weather-Aware Advisory & Daily Site Assistant (Epic 5)</h3>
-            <p style="color: #94a3b8; font-size: 0.9rem;">
-                Real-time meteorological hazard matrix, OSHA/IS 456 site protocols, and conversational construction engineering assistant chatbot.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    """Renders Tab 4 matching Reference Images 3, 4, 5, 6, & 9."""
+    render_top_header("DAILY SITE ASSISTANT & WEATHER ADVISORY")
+
+    view_choice = st.radio(
+        "Select Tool:",
+        [
+            "📝 Daily Site Assistant (Execution Plan)",
+            "⛅ Weather Advisor (Feasibility & Hazards)",
+            "💬 Construction Chatbot",
+            "📖 Knowledge Assistant",
+        ],
+        horizontal=True,
+        key="site_view_radio",
     )
 
-    # 1. Weather Advisory Section
-    st.markdown("#### 1. Dynamic Site Weather Condition Selector")
-    weather_keys = list(WEATHER_PROTOCOLS.keys())
-    selected_weather = st.selectbox(
-        "Select Current / Forecast Site Weather Condition:",
-        weather_keys,
-        index=0,
-        key="weather_selector",
-    )
+    if "Daily Site Assistant" in view_choice:
+        # REFERENCE IMAGE 4: DAILY SITE ASSISTANT
+        col_input, col_plan = st.columns([1, 1.25], gap="large")
 
-    protocol = WEATHER_PROTOCOLS[selected_weather]
-    status_color = protocol["status_color"]
-    alert_class = "danger" if status_color == "danger" else ("warning" if status_color == "warning" else "weather-alert-card")
+        with col_input:
+            st.markdown(
+                """
+                <div style="background:#ffffff; border:1px solid #e2e4e8; border-radius:6px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                    <div style="font-size:0.95rem; font-weight:800; text-transform:uppercase; color:#111827; margin-bottom:14px;">
+                        SITE INPUT
+                    </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
-    st.markdown(
-        f"""
-        <div class="weather-alert-card {alert_class}" style="margin-top: 10px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <h4 style="margin: 0; color: #ffffff;">{protocol['alert_title']}</h4>
-                <span class="badge-severity {'badge-critical' if status_color == 'danger' else 'badge-medium'}">
-                    {protocol['badge']}
-                </span>
-            </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; margin: 12px 0;">
-                <div style="background: rgba(0,0,0,0.25); padding: 8px 12px; border-radius: 6px; font-size: 0.82rem;">
-                    <strong>🏗️ Tower Cranes:</strong> {protocol['crane_status']}
+            plan_act = st.selectbox(
+                "Planned Activity",
+                ["Concreting", "Formwork & Shuttering", "Steel Reinforcement (Rebar)", "Deep Excavation & Shoring"],
+                key="daily_plan_act",
+            )
+            labour_cnt = st.number_input("Labour Count", value=18, min_value=1, max_value=500, key="daily_labour_cnt")
+            site_cond = st.selectbox(
+                "Site Condition",
+                ["Normal", "High Wind", "Rainy / Damp", "Extreme Heat"],
+                key="daily_site_cond",
+            )
+
+            gen_plan_btn = st.button("GENERATE TODAY'S PLAN", type="primary", use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        with col_plan:
+            st.markdown(
+                """
+                <div style="background:#ffffff; border:1px solid #e2e4e8; border-radius:6px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.04); min-height:450px;">
+                    <div style="font-size:0.95rem; font-weight:800; text-transform:uppercase; color:#111827; margin-bottom:14px;">
+                        TODAY'S EXECUTION PLAN
+                    </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            p_data = EXECUTION_PLANS.get(plan_act, EXECUTION_PLANS["Concreting"])
+
+            # TASKS
+            st.markdown("<div style='font-weight:800; font-size:0.88rem; text-transform:uppercase; color:#ff6b00; margin-bottom:8px;'>🔑 TASKS</div>", unsafe_allow_html=True)
+            for t in p_data["tasks"]:
+                st.markdown(f"- <span style='font-size:0.85rem; color:#374151;'>{t}</span>", unsafe_allow_html=True)
+
+            # SAFETY CHECKS
+            st.markdown("<div style='font-weight:800; font-size:0.88rem; text-transform:uppercase; color:#0284c7; margin:16px 0 8px 0;'>🛡️ SAFETY CHECKS</div>", unsafe_allow_html=True)
+            check_html = "".join([f'<span class="tag-check">{chk}</span>' for chk in p_data["safety_checks"]])
+            st.markdown(f"<div>{check_html}</div>", unsafe_allow_html=True)
+
+            # RISK ALERTS
+            st.markdown("<div style='font-weight:800; font-size:0.88rem; text-transform:uppercase; color:#dc2626; margin:16px 0 8px 0;'>⚠️ RISK ALERTS</div>", unsafe_allow_html=True)
+            for r in p_data["risk_alerts"]:
+                st.markdown(f"- <span style='font-size:0.85rem; color:#b91c1c;'>{r}</span>", unsafe_allow_html=True)
+
+            st.markdown("</div>", unsafe_allow_html=True)
+
+    elif "Weather Advisor" in view_choice:
+        # REFERENCE IMAGES 5 & 6: WEATHER ADVISOR
+        col_w_in, col_w_res = st.columns([1, 1.25], gap="large")
+
+        with col_w_in:
+            st.markdown(
+                """
+                <div style="background:#ffffff; border:1px solid #e2e4e8; border-radius:6px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                    <div style="font-size:0.95rem; font-weight:800; text-transform:uppercase; color:#111827; margin-bottom:14px;">
+                        CHECK WEATHER IMPACT
+                    </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            w_act = st.text_input("Planned Activity", value="Slab Concrete Pouring", key="w_act_input")
+            w_cond = st.selectbox(
+                "Current/Forecast Weather",
+                list(WEATHER_ADVISORIES.keys()),
+                index=0,
+                key="w_cond_select",
+            )
+            chk_feas_btn = st.button("CHECK FEASIBILITY", type="primary", use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        with col_w_res:
+            st.markdown(
+                """
+                <div style="background:#ffffff; border:1px solid #e2e4e8; border-radius:6px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.04); min-height:450px;">
+                """,
+                unsafe_allow_html=True,
+            )
+            adv = WEATHER_ADVISORIES[w_cond]
+            status_color = "#ff6b00" if "CAUTION" in adv["status"] else ("#dc2626" if "HALT" in adv["status"] else "#16a34a")
+
+            st.markdown(
+                f"""
+                <div style="font-size:1.45rem; font-weight:900; color:{status_color}; text-transform:uppercase; margin-bottom:8px;">
+                    {adv['status']}
                 </div>
-                <div style="background: rgba(0,0,0,0.25); padding: 8px 12px; border-radius: 6px; font-size: 0.82rem;">
-                    <strong>🪜 Scaffolds:</strong> {protocol['scaffold_status']}
+                <div style="font-size:0.88rem; color:#4b5563; margin-bottom:16px;">
+                    {adv['narrative']}
                 </div>
-                <div style="background: rgba(0,0,0,0.25); padding: 8px 12px; border-radius: 6px; font-size: 0.82rem;">
-                    <strong>🧱 Concreting:</strong> {protocol['concrete_status']}
+                """,
+                unsafe_allow_html=True,
+            )
+
+            # HAZARDS
+            st.markdown("<div style='font-weight:800; font-size:0.88rem; text-transform:uppercase; color:#111827; margin-bottom:8px;'>HAZARDS</div>", unsafe_allow_html=True)
+            haz_html = "".join([f'<span class="tag-hazard">{h}</span>' for h in adv["hazards"]])
+            st.markdown(f"<div>{haz_html}</div>", unsafe_allow_html=True)
+
+            # REQUIRED PRECAUTIONS
+            st.markdown("<div style='font-weight:800; font-size:0.88rem; text-transform:uppercase; color:#111827; margin:16px 0 8px 0;'>REQUIRED PRECAUTIONS</div>", unsafe_allow_html=True)
+            for pr in adv["precautions"]:
+                st.markdown(f"- <span style='font-size:0.85rem; color:#374151;'>{pr}</span>", unsafe_allow_html=True)
+
+            st.markdown("</div>", unsafe_allow_html=True)
+
+    elif "Chatbot" in view_choice:
+        # REFERENCE IMAGE 3: CONSTRUCTION CHATBOT
+        st.markdown(
+            """
+            <div style="background:#ffffff; border:1px solid #e2e4e8; border-radius:6px; padding:22px; box-shadow:0 1px 3px rgba(0,0,0,0.04); min-height:500px;">
+                <div style="font-size:0.95rem; font-weight:800; text-transform:uppercase; color:#111827; margin-bottom:14px;">
+                    CONSTRUCTION CHATBOT
                 </div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+            """,
+            unsafe_allow_html=True,
+        )
 
-    # Directives Accordion
-    with st.expander(f"📜 Mandatory Operational Directives ({selected_weather})", expanded=True):
-        for d in protocol["directives"]:
-            st.markdown(f"- {d}")
-        st.markdown(f"**Regulatory Standards Cited:** `{', '.join(protocol['standards_cited'])}`")
+        if "chatbot_messages" not in st.session_state:
+            st.session_state["chatbot_messages"] = [
+                {"role": "assistant", "content": "Hello! How can I assist you with your construction query today?"}
+            ]
 
-    st.markdown("---")
+        # Chip Buttons matching Reference Image 3
+        chip_col1, chip_col2, chip_col3 = st.columns(3)
+        with chip_col1:
+            if st.button("ASK A QUESTION", use_container_width=True, key="chip_ask"):
+                st.session_state["chip_query"] = "What is the minimum curing period for OPC concrete under IS 456:2000?"
+        with chip_col2:
+            if st.button("GET A CONSTRUCTION TIP", use_container_width=True, key="chip_tip"):
+                st.session_state["chip_query"] = "Under what wind speed must tower crane operations be halted?"
+        with chip_col3:
+            if st.button("DISCUSS A PROJECT", use_container_width=True, key="chip_proj"):
+                st.session_state["chip_query"] = "Provide checklist for slab shuttering de-staging and prop removal."
 
-    # 2. Interactive Multi-Turn Chatbot
-    st.markdown("#### 2. Interactive Civil Engineering Site Assistant Chatbot")
-    st.markdown(
-        """
-        <p style="color: #94a3b8; font-size: 0.88rem; margin-bottom: 12px;">
-            Consult with our AI Senior Resident Engineer on IS 456 concrete codes, OSHA safety regulations, crane wind thresholds, formwork striking schedules, and site troubleshooting.
-        </p>
-        """,
-        unsafe_allow_html=True,
-    )
+        # Display history
+        for msg in st.session_state["chatbot_messages"]:
+            if msg["role"] == "user":
+                st.markdown(
+                    f"""
+                    <div style="display:flex; justify-content:flex-end; margin:10px 0;">
+                        <div style="background:#ff6b00; color:#ffffff; padding:10px 16px; border-radius:18px 18px 4px 18px; font-size:0.88rem; max-width:75%;">
+                            {msg['content']}
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(
+                    f"""
+                    <div style="display:flex; justify-content:flex-start; margin:10px 0;">
+                        <div style="background:#f3f4f6; color:#111827; padding:12px 18px; border-radius:18px 18px 18px 4px; font-size:0.88rem; max-width:80%; border:1px solid #e5e7eb;">
+                            {msg['content']}
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
-    # Quick prompt chips
-    st.markdown("##### 💡 Frequently Asked Engineering Queries")
-    chip_col1, chip_col2 = st.columns([1, 1])
+        chat_input = st.chat_input("Type your question...", key="chat_user_input")
+        send_query = st.session_state.pop("chip_query", None) or chat_input
 
-    suggested_queries = [
-        "What is the minimum curing period for OPC concrete under IS 456?",
-        "Under what wind speed must tower crane operations be halted?",
-        "What are OSHA electrical clearance rules for scaffolding near power lines?",
-        "Provide formwork de-shuttering striking time checklist for 7m beam span.",
-        "How should we adjust concrete mix design for extreme summer heat (42°C)?",
-    ]
+        if send_query:
+            st.session_state["chatbot_messages"].append({"role": "user", "content": send_query})
 
-    selected_chip = None
-    with chip_col1:
-        if st.button(f"📌 {suggested_queries[0]}", use_container_width=True):
-            selected_chip = suggested_queries[0]
-        if st.button(f"📌 {suggested_queries[1]}", use_container_width=True):
-            selected_chip = suggested_queries[1]
-        if st.button(f"📌 {suggested_queries[2]}", use_container_width=True):
-            selected_chip = suggested_queries[2]
-    with chip_col2:
-        if st.button(f"📌 {suggested_queries[3]}", use_container_width=True):
-            selected_chip = suggested_queries[3]
-        if st.button(f"📌 {suggested_queries[4]}", use_container_width=True):
-            selected_chip = suggested_queries[4]
-        if st.button("🗑️ Clear Chat History", type="secondary", use_container_width=True):
-            st.session_state["site_chat_history"] = []
+            def fallback_fn(messages, **kwargs):
+                return get_demo_chatbot_response(send_query)
+
+            reply, is_live, msg = client.chat_completion(
+                messages=st.session_state["chatbot_messages"],
+                system_instruction="You are an expert Senior Resident Construction & Structural Engineer certified in IS 456:2000 and OSHA 1926.",
+                fallback_handler=fallback_fn,
+            )
+            st.session_state["chatbot_messages"].append({"role": "assistant", "content": reply})
             st.rerun()
 
-    # Initialize chat history
-    if "site_chat_history" not in st.session_state:
-        st.session_state["site_chat_history"] = [
-            {
-                "role": "assistant",
-                "content": (
-                    "👋 **Greetings, Site Engineer!** I am your AI Construction Engineering Assistant. "
-                    f"I am actively monitoring site conditions under **{selected_weather}**. "
-                    "Ask me any question regarding IS 456:2000, OSHA 1926, structural repairs, or site management."
-                ),
-            }
-        ]
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    # Display chat history
-    chat_container = st.container()
-    with chat_container:
-        for msg in st.session_state["site_chat_history"]:
-            with st.chat_message(msg["role"]):
-                st.markdown(msg["content"])
+    else:
+        # REFERENCE IMAGE 9: KNOWLEDGE ASSISTANT
+        st.markdown(
+            """
+            <div style="background:#ffffff; border:1px solid #e2e4e8; border-radius:6px; padding:22px; box-shadow:0 1px 3px rgba(0,0,0,0.04); min-height:480px;">
+                <div style="font-size:0.95rem; font-weight:800; text-transform:uppercase; color:#111827; margin-bottom:14px;">
+                    KNOWLEDGE ASSISTANT
+                </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-    # Chat input
-    user_prompt = st.chat_input("Ask a construction safety or civil engineering question...")
-    query_to_send = selected_chip or user_prompt
+        k_tag = st.radio("Category Tag:", ["SAFETY", "TECHNIQUE", "DOC GEN"], horizontal=True, key="k_tag_radio")
+        k_query = st.text_area(
+            "Knowledge Inquiry",
+            value="e.g. Steps for scaffolding erection and tie-off under IS 13415",
+            height=90,
+            key="k_inquiry_text",
+        )
+        ask_expert_btn = st.button("ASK EXPERT", type="primary", use_container_width=True)
 
-    if query_to_send:
-        # Append user message
-        st.session_state["site_chat_history"].append({"role": "user", "content": query_to_send})
-        with chat_container:
-            with st.chat_message("user"):
-                st.markdown(query_to_send)
+        if ask_expert_btn:
+            with st.spinner("Retrieving civil engineering codal standards..."):
+                resp = get_demo_chatbot_response(k_query)
+                st.markdown(
+                    f"""
+                    <div style="background:#f9fafb; border-left:4px solid #ff6b00; padding:14px 18px; border-radius:4px; margin-top:16px; font-size:0.88rem; color:#1f2937;">
+                        {resp}
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
-        # Generate response
-        with chat_container:
-            with st.chat_message("assistant"):
-                with st.spinner("Consulting IS 456 & OSHA engineering knowledge base..."):
-                    system_ctx = (
-                        f"{CIVIL_ENGINEERING_SYSTEM_INSTRUCTION}\n"
-                        f"CURRENT SITE WEATHER CONDITION: {selected_weather}\n"
-                        f"WEATHER DIRECTIVES: {protocol['directives']}\n"
-                    )
-
-                    def local_fallback(messages: List[Dict[str, str]], **kwargs):
-                        last_q = messages[-1]["content"] if messages else ""
-                        return get_demo_chatbot_response(last_q, selected_weather)
-
-                    reply_text, is_live, status_msg = client.chat_completion(
-                        messages=st.session_state["site_chat_history"],
-                        system_instruction=system_ctx,
-                        fallback_handler=local_fallback,
-                    )
-
-                    st.markdown(reply_text)
-                    if is_live:
-                        st.caption(f"⚡ {status_msg}")
-                    else:
-                        st.caption(f"💡 {status_msg}")
-
-        # Save assistant message
-        st.session_state["site_chat_history"].append({"role": "assistant", "content": reply_text})
-        st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
